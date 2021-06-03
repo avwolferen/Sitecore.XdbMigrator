@@ -44,6 +44,16 @@ namespace AlexVanWolferen.SitecoreXdbMigrator
             Task.WaitAll(xConnectConnector.GetInfo(xConnectConnector.targetClient));
 
             // If you want to identify contacts please make a SQL export with
+            /*
+             * 
+             * Run this in both (all) shards of the source and store it in files according to the filepath format in the app.config (appsetting shard_csv)
+                SELECT [ContactId]
+                      ,[Source]
+                FROM [xdb_collection].[ContactIdentifiers]
+                WHERE Source = 'xDB.Tracker' and IdentifierType = 0
+                
+             * 
+             */
             if (identityContacts)
             {
                 IdentifyUnidentifiedContacts(args, xConnectConnector).ConfigureAwait(false).GetAwaiter().GetResult();
