@@ -1,1 +1,1 @@
-# Sitecore.XdbMigrator
+# XdbMigrator
