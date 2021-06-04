@@ -128,6 +128,7 @@
     </Reference>
     <Reference Include="Sitecore.XConnect.Collection.Model, Version=6.0.0.0, Culture=neutral, processorArchitecture=MSIL">
       <HintPath>packages\Sitecore.XConnect.Collection.Model.10.1.0\lib\netstandard2.0\Sitecore.XConnect.Collection.Model.dll</HintPath>
+      <SpecificVersion>False</SpecificVersion>
     </Reference>
     <Reference Include="Sitecore.XConnect.Core, Version=4.0.0.0, Culture=neutral, processorArchitecture=MSIL">
       <HintPath>packages\Sitecore.XConnect.Core.10.1.0\lib\netstandard2.0\Sitecore.XConnect.Core.dll</HintPath>

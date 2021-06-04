@@ -339,6 +339,7 @@ namespace AlexVanWolferen.SitecoreXdbMigrator
 
             var sourceSerializerSettings = new JsonSerializerSettings
             {
+                // Trick the model!
                 ContractResolver = new XdbJsonContractResolver(sourceClient.Model,
                 serializeFacets: true,
                 serializeContactInteractions: true),
@@ -626,8 +627,12 @@ namespace AlexVanWolferen.SitecoreXdbMigrator
                                                 Outcome newEvent = new Outcome(o.DefinitionId, o.Timestamp, o.CurrencyCode, o.MonetaryValue);
                                                 targetEvent = newEvent;
                                             }
-                                            else if (sourceEvent is PageViewEvent pve)
+                                            else if (sourceEvent.GetType().Name == nameof(PageViewEvent))
                                             {
+                                                // TODO apply this trick to all other events
+                                                var serialized = JsonConvert.SerializeObject(sourceEvent, sourceSerializerSettings);
+                                                PageViewEvent pve = JsonConvert.DeserializeObject<PageViewEvent>(serialized, targetSerializerSettings);
+
                                                 PageViewEvent newEvent = new PageViewEvent(
                                                     pve.Timestamp,
                                                     pve.ItemId,
@@ -739,77 +744,78 @@ namespace AlexVanWolferen.SitecoreXdbMigrator
                                 }
 
                                 // todo get original types from source
-                                //if (sourceInteraction.Facets.ContainsKey(IpInfo.DefaultFacetKey))
-                                //{
-                                //    var serialized = JsonConvert.SerializeObject(sourceInteraction.Facets[IpInfo.DefaultFacetKey], sourceSerializerSettings);
-                                //    IpInfo sourceFacet = JsonConvert.DeserializeObject<IpInfo>(serialized, targetSerializerSettings);
-                                //    var facet = addOrUpdateInteraction.GetFacet<IpInfo>(FacetKeys.IpInfo);
-                                //    if (facet == null)
-                                //    {
-                                //        facet = new IpInfo(sourceFacet.IpAddress);
-                                //    }
+                                if (sourceInteraction.Facets.ContainsKey(IpInfo.DefaultFacetKey))
+                                {
+                                    var serialized = JsonConvert.SerializeObject(sourceInteraction.Facets[IpInfo.DefaultFacetKey], sourceSerializerSettings);
+                                    IpInfo sourceFacet = JsonConvert.DeserializeObject<IpInfo>(serialized, targetSerializerSettings);
+                                    var facet = addOrUpdateInteraction.GetFacet<IpInfo>(FacetKeys.IpInfo);
+                                    if (facet == null)
+                                    {
+                                        facet = new IpInfo(sourceFacet.IpAddress);
+                                    }
 
-                                //    facet.AreaCode = sourceFacet.AreaCode ?? string.Empty;
-                                //    facet.BusinessName = sourceFacet.BusinessName ?? string.Empty;
-                                //    facet.City = sourceFacet.City ?? string.Empty;
-                                //    facet.Country = sourceFacet.Country ?? string.Empty;
-                                //    facet.Isp = sourceFacet.Isp ?? string.Empty;
-                                //    facet.Latitude = sourceFacet.Latitude;
-                                //    facet.Longitude = sourceFacet.Longitude;
-                                //    facet.LocationId = sourceFacet.LocationId;
-                                //    facet.MetroCode = sourceFacet.MetroCode ?? string.Empty;
-                                //    facet.PostalCode = sourceFacet.PostalCode ?? string.Empty;
-                                //    facet.Region = sourceFacet.Region ?? string.Empty;
-                                //    facet.Url = sourceFacet.Url ?? string.Empty;
-                                //    facet.Dns = sourceFacet.Dns ?? string.Empty;
+                                    facet.AreaCode = sourceFacet.AreaCode ?? string.Empty;
+                                    facet.BusinessName = sourceFacet.BusinessName ?? string.Empty;
+                                    facet.City = sourceFacet.City ?? string.Empty;
+                                    facet.Country = sourceFacet.Country ?? string.Empty;
+                                    facet.Isp = sourceFacet.Isp ?? string.Empty;
+                                    facet.Latitude = sourceFacet.Latitude;
+                                    facet.Longitude = sourceFacet.Longitude;
+                                    facet.LocationId = sourceFacet.LocationId;
+                                    facet.MetroCode = sourceFacet.MetroCode ?? string.Empty;
+                                    facet.PostalCode = sourceFacet.PostalCode ?? string.Empty;
+                                    facet.Region = sourceFacet.Region ?? string.Empty;
+                                    facet.Url = sourceFacet.Url ?? string.Empty;
+                                    facet.Dns = sourceFacet.Dns ?? string.Empty;
 
-                                //    targetClient.SetFacet(addOrUpdateInteraction, FacetKeys.IpInfo, facet);
-                                //}
+                                    targetClient.SetFacet(addOrUpdateInteraction, FacetKeys.IpInfo, facet);
+                                }
 
                                 //if (sourceInteraction.Facets.ContainsKey(ProfileScores.DefaultFacetKey))
                                 //{
-                                //    //TODO implement
-                                //    //xConnectConnector.targetClient.SetFacet(
-                                //    //    addOrUpdateInteraction,
-                                //    //    ProfileScores.DefaultFacetKey,
-                                //    //    addOrUpdateInteraction.ProfileScores().WithClearedConcurrency());
+                                //TODO implement
+                                //xConnectConnector.targetClient.SetFacet(
+                                //    addOrUpdateInteraction,
+                                //    ProfileScores.DefaultFacetKey,
+                                //    addOrUpdateInteraction.ProfileScores().WithClearedConcurrency());
                                 //}
 
 
                                 // todo get original types from source
-                                //if (sourceInteraction.Facets.ContainsKey(WebVisit.DefaultFacetKey))
-                                //{
-                                //    var serialized = JsonConvert.SerializeObject(sourceInteraction.Facets[WebVisit.DefaultFacetKey], sourceSerializerSettings);
-                                //    WebVisit sourceFacet = JsonConvert.DeserializeObject<WebVisit>(serialized, targetSerializerSettings);
-                                //    var facet = addOrUpdateInteraction.GetFacet<WebVisit>(FacetKeys.WebVisit);
-                                //    if (facet == null)
-                                //    {
-                                //        facet = new WebVisit();
-                                //    }
+                                if (sourceInteraction.Facets.ContainsKey(WebVisit.DefaultFacetKey))
+                                {
+                                    var serialized = JsonConvert.SerializeObject(sourceInteraction.Facets[WebVisit.DefaultFacetKey], sourceSerializerSettings);
+                                    WebVisit sourceFacet = JsonConvert.DeserializeObject<WebVisit>(serialized, targetSerializerSettings);
 
-                                //    facet.Browser = new BrowserData();
-                                //    if (sourceFacet.Browser != null)
-                                //    {
-                                //        facet.Browser.BrowserMajorName = sourceFacet.Browser.BrowserMajorName;
-                                //        facet.Browser.BrowserMinorName = sourceFacet.Browser.BrowserMinorName;
-                                //        facet.Browser.BrowserVersion = sourceFacet.Browser.BrowserVersion;
-                                //    }
-                                //    facet.IsSelfReferrer = sourceFacet.IsSelfReferrer;
-                                //    facet.Language = sourceFacet.Language;
-                                //    facet.OperatingSystem = sourceFacet.OperatingSystem;
-                                //    facet.Referrer = sourceFacet.Referrer;
-                                //    facet.Screen = new ScreenData();
-                                //    if (sourceFacet.Screen != null)
-                                //    {
-                                //        facet.Screen.ScreenHeight = sourceFacet.Screen.ScreenHeight;
-                                //        facet.Screen.ScreenWidth = sourceFacet.Screen.ScreenWidth;
-                                //    }
+                                    var facet = addOrUpdateInteraction.GetFacet<WebVisit>(FacetKeys.WebVisit);
+                                    if (facet == null)
+                                    {
+                                        facet = new WebVisit();
+                                    }
 
-                                //    facet.SearchKeywords = sourceFacet.SearchKeywords;
-                                //    facet.SiteName = sourceFacet.SiteName;
+                                    facet.Browser = new BrowserData();
+                                    if (sourceFacet.Browser != null)
+                                    {
+                                        facet.Browser.BrowserMajorName = sourceFacet.Browser.BrowserMajorName;
+                                        facet.Browser.BrowserMinorName = sourceFacet.Browser.BrowserMinorName;
+                                        facet.Browser.BrowserVersion = sourceFacet.Browser.BrowserVersion;
+                                    }
+                                    facet.IsSelfReferrer = sourceFacet.IsSelfReferrer;
+                                    facet.Language = sourceFacet.Language;
+                                    facet.OperatingSystem = sourceFacet.OperatingSystem;
+                                    facet.Referrer = sourceFacet.Referrer;
+                                    facet.Screen = new ScreenData();
+                                    if (sourceFacet.Screen != null)
+                                    {
+                                        facet.Screen.ScreenHeight = sourceFacet.Screen.ScreenHeight;
+                                        facet.Screen.ScreenWidth = sourceFacet.Screen.ScreenWidth;
+                                    }
 
-                                //    targetClient.SetFacet(addOrUpdateInteraction, FacetKeys.WebVisit, facet);
-                                //}
+                                    facet.SearchKeywords = sourceFacet.SearchKeywords;
+                                    facet.SiteName = sourceFacet.SiteName;
+
+                                    targetClient.SetFacet(addOrUpdateInteraction, FacetKeys.WebVisit, facet);
+                                }
 
                             }
                         }
@@ -1031,6 +1037,10 @@ namespace AlexVanWolferen.SitecoreXdbMigrator
                     MethodInfo staticModel = custommodeltype.GetMethod("get_Model");
 
                     requestedModel = staticModel.Invoke(null, null) as XdbModel;
+                }
+                else if (version == ModelVersion.Model101)
+                {
+                    return Model;
                 }
                 else
                 {
