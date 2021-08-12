@@ -1,22 +1,6 @@
-﻿using Sitecore.XConnect;
-using Sitecore.XConnect.Client;
-using Sitecore.XConnect.Client.WebApi;
-using Sitecore.XConnect.Collection.Model;
-using Sitecore.XConnect.Schema;
-using Sitecore.XConnect.Serialization;
-using Sitecore.XConnect.Operations;
-using Sitecore.ContentTesting.Model.xConnect;
-using Sitecore.Xdb.Common.Web;
-using System;
-using System.Collections.Generic;
+﻿using System;
 using System.IO;
-using System.Linq;
-using System.Reflection;
 using System.Threading.Tasks;
-using static Sitecore.XConnect.Collection.Model.CollectionModel;
-using Newtonsoft.Json;
-using Sitecore.XConnect.Client.Serialization;
-using System.Security;
 using System.Configuration;
 
 namespace AlexVanWolferen.SitecoreXdbMigrator

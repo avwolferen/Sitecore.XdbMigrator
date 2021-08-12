@@ -1,5 +1,6 @@
 ﻿using Newtonsoft.Json;
 using Sitecore.ContentTesting.Model.xConnect;
+using Sitecore.EmailCampaign.Model.XConnect.Events;
 using Sitecore.XConnect;
 using Sitecore.XConnect.Client;
 using Sitecore.XConnect.Client.Serialization;
@@ -25,20 +26,27 @@ namespace AlexVanWolferen.SitecoreXdbMigrator
     public class XConnectConnector
     {
         public XConnectClient sourceClient { get; private set; }
+
         public XConnectClient targetClient { get; private set; }
+
         public DateTime startDate { get; private set; } = DateTime.UtcNow.AddDays(-7);
+
         public DateTime endDate { get; private set; } = DateTime.MaxValue;
+
         public int batchSize { get; private set; } = 1000;
 
         public bool skipInteractions { get; private set; } = true;
 
         public string LogFile { get; private set; }
 
-        public bool usePfx { get; set; }
+        public bool usePfx { get; private set; }
 
-        public bool useCustomModel { get; set; }
+        public bool useCustomModel { get; private set; }
 
-        public int numSourceShards { get; set; } = 2;
+        public int numSourceShards { get; private set; } = 2;
+
+        public JsonSerializerSettings SourceSerializerSettings { get; private set; }
+        public JsonSerializerSettings TargetSerializerSettings { get; private set; }
 
         public XConnectConnector(DateTime startDate, DateTime endDate, bool skipInteractions, int batchSize, bool usePfx, bool useCustomModel)
             : this()
@@ -211,6 +219,24 @@ namespace AlexVanWolferen.SitecoreXdbMigrator
 
             sourceClient = await GetClient(sourceModel, sourceCollectEndpoint, sourceSearchEndpoint, sourceCertificateStoreLocation, sourceCertificateFile, sourceCertificatePassword);
             targetClient = await GetClient(targetModel, targetCollectEndpoint, targetSearchEndpoint, targetCertificateStoreLocation, targetCertificateFile, targetCertificatePassword);
+
+            SourceSerializerSettings = new JsonSerializerSettings
+            {
+                ContractResolver = new XdbJsonContractResolver(sourceClient.Model,
+                serializeFacets: true,
+                serializeContactInteractions: true),
+                DateTimeZoneHandling = DateTimeZoneHandling.Utc,
+                DefaultValueHandling = DefaultValueHandling.Ignore,
+            };
+
+            TargetSerializerSettings = new JsonSerializerSettings
+            {
+                ContractResolver = new XdbJsonContractResolver(targetClient.Model,
+                serializeFacets: true,
+                serializeContactInteractions: true),
+                DateTimeZoneHandling = DateTimeZoneHandling.Utc,
+                DefaultValueHandling = DefaultValueHandling.Ignore,
+            };
         }
 
         /// This is only applicable if you have anonymous contact indexing turned off in the IndexWorker.
@@ -337,24 +363,7 @@ namespace AlexVanWolferen.SitecoreXdbMigrator
 
             int contactsProcessed = 0, contactsCreated = 0, interactionsProcessed = 0;
 
-            var sourceSerializerSettings = new JsonSerializerSettings
-            {
-                // Trick the model!
-                ContractResolver = new XdbJsonContractResolver(sourceClient.Model,
-                serializeFacets: true,
-                serializeContactInteractions: true),
-                DateTimeZoneHandling = DateTimeZoneHandling.Utc,
-                DefaultValueHandling = DefaultValueHandling.Ignore,
-            };
 
-            var targetSerializerSettings = new JsonSerializerSettings
-            {
-                ContractResolver = new XdbJsonContractResolver(targetClient.Model,
-                serializeFacets: true,
-                serializeContactInteractions: true),
-                DateTimeZoneHandling = DateTimeZoneHandling.Utc,
-                DefaultValueHandling = DefaultValueHandling.Ignore,                
-            };
 
             try
             {
@@ -452,8 +461,8 @@ namespace AlexVanWolferen.SitecoreXdbMigrator
 
                         if (c.Facets.ContainsKey(FacetKeys.AddressList))
                         {
-                            var serialized = JsonConvert.SerializeObject(c.Facets[FacetKeys.AddressList], sourceSerializerSettings);
-                            AddressList sourceFacet = JsonConvert.DeserializeObject<AddressList>(serialized, targetSerializerSettings);
+                            var serialized = JsonConvert.SerializeObject(c.Facets[FacetKeys.AddressList], SourceSerializerSettings);
+                            AddressList sourceFacet = JsonConvert.DeserializeObject<AddressList>(serialized, TargetSerializerSettings);
                             var facet = contact.GetFacet<AddressList>(FacetKeys.AddressList);
                             if (facet != null)
                             {
@@ -487,8 +496,8 @@ namespace AlexVanWolferen.SitecoreXdbMigrator
 
                         if (c.Facets.ContainsKey(FacetKeys.EmailAddressList))
                         {
-                            var serialized = JsonConvert.SerializeObject(c.Facets[FacetKeys.EmailAddressList], sourceSerializerSettings);
-                            EmailAddressList sourceFacet = JsonConvert.DeserializeObject<EmailAddressList>(serialized, targetSerializerSettings);
+                            var serialized = JsonConvert.SerializeObject(c.Facets[FacetKeys.EmailAddressList], SourceSerializerSettings);
+                            EmailAddressList sourceFacet = JsonConvert.DeserializeObject<EmailAddressList>(serialized, TargetSerializerSettings);
                             var facet = contact.GetFacet<EmailAddressList>(FacetKeys.EmailAddressList);
                             if (facet != null)
                             {
@@ -507,8 +516,8 @@ namespace AlexVanWolferen.SitecoreXdbMigrator
 
                         if (c.Facets.ContainsKey(FacetKeys.PhoneNumberList))
                         {
-                            var serialized = JsonConvert.SerializeObject(c.Facets[FacetKeys.PhoneNumberList], sourceSerializerSettings);
-                            PhoneNumberList sourceFacet = JsonConvert.DeserializeObject<PhoneNumberList>(serialized, targetSerializerSettings);
+                            var serialized = JsonConvert.SerializeObject(c.Facets[FacetKeys.PhoneNumberList], SourceSerializerSettings);
+                            PhoneNumberList sourceFacet = JsonConvert.DeserializeObject<PhoneNumberList>(serialized, TargetSerializerSettings);
                             if (sourceFacet.PreferredPhoneNumber != null && !string.IsNullOrWhiteSpace(sourceFacet.PreferredPhoneNumber.Number))
                             {
                                 var facet = contact.GetFacet<PhoneNumberList>(FacetKeys.PhoneNumberList);
@@ -530,8 +539,8 @@ namespace AlexVanWolferen.SitecoreXdbMigrator
 
                         if (c.Facets.ContainsKey(FacetKeys.PersonalInformation))
                         {
-                            var serialized = JsonConvert.SerializeObject(c.Facets[FacetKeys.PersonalInformation], sourceSerializerSettings);
-                            PersonalInformation sourceFacet = JsonConvert.DeserializeObject<PersonalInformation>(serialized, targetSerializerSettings);
+                            var serialized = JsonConvert.SerializeObject(c.Facets[FacetKeys.PersonalInformation], SourceSerializerSettings);
+                            PersonalInformation sourceFacet = JsonConvert.DeserializeObject<PersonalInformation>(serialized, TargetSerializerSettings);
                             var facet = contact.GetFacet<PersonalInformation>(FacetKeys.PersonalInformation) ?? new PersonalInformation();
                             if (facet != null)
                             {
@@ -596,104 +605,132 @@ namespace AlexVanWolferen.SitecoreXdbMigrator
                                         {
                                             Event targetEvent;
 
-                                            if (sourceEvent is CampaignEvent ce)
+                                            if (sourceEvent.GetType().Name == nameof(CampaignEvent))
                                             {
-                                                CampaignEvent newEvent = new CampaignEvent(ce.CampaignDefinitionId, ce.Timestamp);
+                                                var oldev = GetCompatibleEvent<CampaignEvent>(sourceEvent);
+
+                                                CampaignEvent newEvent = new CampaignEvent(oldev.CampaignDefinitionId, oldev.Timestamp);
                                                 targetEvent = newEvent;
                                             }
-                                            else if (sourceEvent is DownloadEvent de)
+                                            else if (sourceEvent.GetType().Name == nameof(DownloadEvent))
                                             {
-                                                DownloadEvent newEvent = new DownloadEvent(de.Timestamp, de.ItemId);
+                                                var oldev = GetCompatibleEvent<DownloadEvent>(sourceEvent);
+
+                                                DownloadEvent oldev2 = GetCompatibleEvent<DownloadEvent>(sourceEvent);
+
+                                                DownloadEvent newEvent = new DownloadEvent(oldev.Timestamp, oldev.ItemId);
                                                 targetEvent = newEvent;
                                             }
-                                            else if (sourceEvent is Goal g)
+                                            else if (sourceEvent.GetType().Name == nameof(Goal))
                                             {
-                                                Goal newEvent = new Goal(g.DefinitionId, g.Timestamp);
+                                                var oldev = GetCompatibleEvent<Goal>(sourceEvent);
+
+                                                Goal newEvent = new Goal(oldev.DefinitionId, oldev.Timestamp);
                                                 targetEvent = newEvent;
                                             }
-                                            else if (sourceEvent is MVTestTriggered mvt)
+                                            else if (sourceEvent.GetType().Name == nameof(MVTestTriggered))
                                             {
-                                                MVTestTriggered newEvent = new MVTestTriggered(mvt.Timestamp);
-                                                newEvent.Combination = mvt.Combination;
-                                                newEvent.EligibleRules = mvt.EligibleRules;
-                                                newEvent.ExposureTime = mvt.ExposureTime;
-                                                newEvent.FirstExposure = mvt.FirstExposure;
-                                                newEvent.IsSuspended = mvt.IsSuspended;
-                                                newEvent.ValueAtExposure = mvt.ValueAtExposure;
+                                                var oldev = GetCompatibleEvent<MVTestTriggered>(sourceEvent);
+
+                                                MVTestTriggered newEvent = new MVTestTriggered(oldev.Timestamp);
+                                                newEvent.Combination = oldev.Combination;
+                                                newEvent.EligibleRules = oldev.EligibleRules;
+                                                newEvent.ExposureTime = oldev.ExposureTime;
+                                                newEvent.FirstExposure = oldev.FirstExposure;
+                                                newEvent.IsSuspended = oldev.IsSuspended;
+                                                newEvent.ValueAtExposure = oldev.ValueAtExposure;
                                                 targetEvent = newEvent;
                                             }
-                                            else if (sourceEvent is Outcome o)
+                                            else if (sourceEvent.GetType().Name == nameof(Outcome ))
                                             {
-                                                Outcome newEvent = new Outcome(o.DefinitionId, o.Timestamp, o.CurrencyCode, o.MonetaryValue);
+                                                var oldev = GetCompatibleEvent<Outcome>(sourceEvent);
+
+                                                Outcome newEvent = new Outcome(oldev.DefinitionId, oldev.Timestamp, oldev.CurrencyCode, oldev.MonetaryValue);
                                                 targetEvent = newEvent;
                                             }
                                             else if (sourceEvent.GetType().Name == nameof(PageViewEvent))
                                             {
-                                                // TODO apply this trick to all other events
-                                                var serialized = JsonConvert.SerializeObject(sourceEvent, sourceSerializerSettings);
-                                                PageViewEvent pve = JsonConvert.DeserializeObject<PageViewEvent>(serialized, targetSerializerSettings);
+                                                var oldev = GetCompatibleEvent<PageViewEvent>(sourceEvent);
 
                                                 PageViewEvent newEvent = new PageViewEvent(
-                                                    pve.Timestamp,
-                                                    pve.ItemId,
-                                                    pve.ItemVersion,
-                                                    pve.ItemLanguage);
-                                                newEvent.SitecoreRenderingDevice = pve.SitecoreRenderingDevice;
-                                                newEvent.Url = pve.Url;
+                                                    oldev.Timestamp,
+                                                    oldev.ItemId,
+                                                    oldev.ItemVersion,
+                                                    oldev.ItemLanguage);
+                                                newEvent.SitecoreRenderingDevice = oldev.SitecoreRenderingDevice;
+                                                newEvent.Url = oldev.Url;
                                                 targetEvent = newEvent;
                                             }
-                                            else if (sourceEvent is PersonalizationEvent pe)
+                                            else if (sourceEvent.GetType().Name == nameof(PersonalizationEvent))
                                             {
-                                                PersonalizationEvent newEvent = new PersonalizationEvent(pe.Timestamp);
-                                                newEvent.ExposedRules = pe.ExposedRules;
+                                                var oldev = GetCompatibleEvent<PersonalizationEvent>(sourceEvent);
+
+                                                PersonalizationEvent newEvent = new PersonalizationEvent(oldev.Timestamp);
+                                                newEvent.ExposedRules = oldev.ExposedRules;
                                                 targetEvent = newEvent;
                                             }
-                                            else if (sourceEvent is SearchEvent se)
+                                            else if (sourceEvent.GetType().Name == nameof(SearchEvent))
                                             {
-                                                SearchEvent newEvent = new SearchEvent(se.Timestamp);
-                                                newEvent.Keywords = se.Keywords;
+                                                var oldev = GetCompatibleEvent<SearchEvent>(sourceEvent);
+
+                                                SearchEvent newEvent = new SearchEvent(oldev.Timestamp);
+                                                newEvent.Keywords = oldev.Keywords;
                                                 targetEvent = newEvent;
                                             }
                                             #region EXM related, disabled those
-                                            //else if (sourceEvent is BounceEvent be)
-                                            //{
-                                            //    BounceEvent newEvent = new BounceEvent(be.Timestamp);
-                                            //    newEvent.BounceReason = be.BounceReason;
-                                            //    newEvent.BounceType = be.BounceType;
-                                            //    targetEvent = newEvent;
-                                            //}
-                                            //else if (sourceEvent is DispatchFailedEvent dfe)
-                                            //{
-                                            //    DispatchFailedEvent newEvent = new DispatchFailedEvent(dfe.Timestamp);
-                                            //    newEvent.FailureReason = dfe.FailureReason;
-                                            //    targetEvent = newEvent;
-                                            //}
-                                            //else if (sourceEvent is EmailClickedEvent ece)
-                                            //{
-                                            //    EmailClickedEvent newEvent = new EmailClickedEvent(ece.Timestamp);
-                                            //    newEvent.Url = ece.Url;
-                                            //    targetEvent = newEvent;
-                                            //}
-                                            //else if (sourceEvent is EmailOpenedEvent eoe)
-                                            //{
-                                            //    EmailOpenedEvent newEvent = new EmailOpenedEvent(eoe.Timestamp);
-                                            //    targetEvent = newEvent;
-                                            //}
-                                            //else if (sourceEvent is EmailSentEvent ese)
-                                            //{
-                                            //    EmailSentEvent newEvent = new EmailSentEvent(ese.Timestamp);
-                                            //    targetEvent = newEvent;
-                                            //}
-                                            //else if (sourceEvent is SpamComplaintEvent sce)
-                                            //{
-                                            //    SpamComplaintEvent newEvent = new SpamComplaintEvent(sce.Timestamp);
-                                            //    targetEvent = newEvent;
-                                            //}
-                                            //else if (sourceEvent is UnsubscribedFromEmailEvent uee)
-                                            //{
-                                            //    UnsubscribedFromEmailEvent newEvent = new UnsubscribedFromEmailEvent(uee.Timestamp);
-                                            //    targetEvent = newEvent;
-                                            //}
+                                            else if (sourceEvent.GetType().Name == nameof(BounceEvent))
+                                            {
+                                                var oldev = GetCompatibleEvent<BounceEvent>(sourceEvent);
+
+                                                BounceEvent newEvent = new BounceEvent(oldev.Timestamp);
+                                                newEvent.BounceReason = oldev.BounceReason;
+                                                newEvent.BounceType = oldev.BounceType;
+                                                targetEvent = newEvent;
+                                            }
+                                            else if (sourceEvent.GetType().Name == nameof(DispatchFailedEvent))
+                                            {
+                                                var oldev = GetCompatibleEvent<DispatchFailedEvent>(sourceEvent);
+
+                                                DispatchFailedEvent newEvent = new DispatchFailedEvent(oldev.Timestamp);
+                                                newEvent.FailureReason = oldev.FailureReason;
+                                                targetEvent = newEvent;
+                                            }
+                                            else if (sourceEvent.GetType().Name == nameof(EmailClickedEvent))
+                                            {
+                                                var oldev = GetCompatibleEvent<EmailClickedEvent>(sourceEvent);
+
+                                                EmailClickedEvent newEvent = new EmailClickedEvent(oldev.Timestamp);
+                                                newEvent.Url = oldev.Url;
+                                                targetEvent = newEvent;
+                                            }
+                                            else if (sourceEvent.GetType().Name == nameof(EmailOpenedEvent))
+                                            {
+                                                var oldev = GetCompatibleEvent<EmailOpenedEvent>(sourceEvent);
+
+                                                EmailOpenedEvent newEvent = new EmailOpenedEvent(oldev.Timestamp);
+                                                targetEvent = newEvent;
+                                            }
+                                            else if (sourceEvent.GetType().Name == nameof(EmailSentEvent))
+                                            {
+                                                var oldev = GetCompatibleEvent<EmailSentEvent>(sourceEvent);
+
+                                                EmailSentEvent newEvent = new EmailSentEvent(oldev.Timestamp);
+                                                targetEvent = newEvent;
+                                            }
+                                            else if (sourceEvent.GetType().Name == nameof(SpamComplaintEvent))
+                                            {
+                                                var oldev = GetCompatibleEvent<SpamComplaintEvent>(sourceEvent);
+
+                                                SpamComplaintEvent newEvent = new SpamComplaintEvent(oldev.Timestamp);
+                                                targetEvent = newEvent;
+                                            }
+                                            else if (sourceEvent.GetType().Name == nameof(UnsubscribedFromEmailEvent))
+                                            {
+                                                var oldev = GetCompatibleEvent<UnsubscribedFromEmailEvent>(sourceEvent);
+
+                                                UnsubscribedFromEmailEvent newEvent = new UnsubscribedFromEmailEvent(oldev.Timestamp);
+                                                targetEvent = newEvent;
+                                            }
                                             #endregion
                                             else
                                             {
@@ -727,8 +764,8 @@ namespace AlexVanWolferen.SitecoreXdbMigrator
 
                                 if (sourceInteraction.Facets.ContainsKey(UserAgentInfo.DefaultFacetKey))
                                 {
-                                    var serialized = JsonConvert.SerializeObject(sourceInteraction.Facets[UserAgentInfo.DefaultFacetKey], sourceSerializerSettings);
-                                    UserAgentInfo sourceFacet = JsonConvert.DeserializeObject<UserAgentInfo>(serialized, targetSerializerSettings);
+                                    var sourceFacet = GetCompatibleFacet<UserAgentInfo>(sourceInteraction.Facets[UserAgentInfo.DefaultFacetKey]);
+
                                     var facet = addOrUpdateInteraction.GetFacet<UserAgentInfo>(FacetKeys.UserAgentInfo);
                                     if (facet == null)
                                     {
@@ -746,8 +783,7 @@ namespace AlexVanWolferen.SitecoreXdbMigrator
                                 // todo get original types from source
                                 if (sourceInteraction.Facets.ContainsKey(IpInfo.DefaultFacetKey))
                                 {
-                                    var serialized = JsonConvert.SerializeObject(sourceInteraction.Facets[IpInfo.DefaultFacetKey], sourceSerializerSettings);
-                                    IpInfo sourceFacet = JsonConvert.DeserializeObject<IpInfo>(serialized, targetSerializerSettings);
+                                    var sourceFacet = GetCompatibleFacet<IpInfo>(sourceInteraction.Facets[IpInfo.DefaultFacetKey]);
                                     var facet = addOrUpdateInteraction.GetFacet<IpInfo>(FacetKeys.IpInfo);
                                     if (facet == null)
                                     {
@@ -910,6 +946,24 @@ namespace AlexVanWolferen.SitecoreXdbMigrator
             {
                 Log(ex.Message);
             }
+        }
+
+        private T GetCompatibleFacet<T>(Facet facet)
+        {
+            var serialized = JsonConvert.SerializeObject(facet, SourceSerializerSettings);
+            T sourceFacet = JsonConvert.DeserializeObject<T>(serialized, TargetSerializerSettings);
+            return sourceFacet;
+        }
+
+        private T GetCompatibleEvent<T>(Event sourceEvent)
+        {
+            if (sourceEvent.GetType().Name != nameof(T))
+            {
+                return default(T);
+            }
+
+            var serialized = JsonConvert.SerializeObject(sourceEvent, sourceSerializerSettings);
+            return JsonConvert.DeserializeObject<T>(serialized, targetSerializerSettings);
         }
 
         private async Task<XConnectClient> GetClient(object model, string collectionEndpoint, string searchEndpoint, string certificateStoreLocation, string certificateFile, SecureString certificatePassword)

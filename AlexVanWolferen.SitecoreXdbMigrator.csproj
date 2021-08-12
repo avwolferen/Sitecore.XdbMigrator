@@ -105,6 +105,9 @@
     <Reference Include="Sitecore.ContentTesting.Model.xConnect, Version=17.0.0.0, Culture=neutral, processorArchitecture=MSIL">
       <HintPath>packages\Sitecore.ContentTesting.Model.xConnect.10.1.0\lib\net48\Sitecore.ContentTesting.Model.xConnect.dll</HintPath>
     </Reference>
+    <Reference Include="Sitecore.EmailCampaign.Model, Version=11.0.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>packages\Sitecore.EmailCampaign.Model.10.1.0\lib\net48\Sitecore.EmailCampaign.Model.dll</HintPath>
+    </Reference>
     <Reference Include="Sitecore.Framework.Conditions, Version=5.0.0.0, Culture=neutral, processorArchitecture=MSIL">
       <HintPath>packages\Sitecore.Framework.Conditions.5.0.0\lib\netstandard2.0\Sitecore.Framework.Conditions.dll</HintPath>
     </Reference>
